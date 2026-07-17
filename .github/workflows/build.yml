@@ -64,12 +64,11 @@ jobs:
           PYTHON: python
         run: |
           export PATH="/c/hostedtoolcache/windows/Python/3.10.11/x64:/c/hostedtoolcache/windows/Python/3.10.11/x64/Scripts:$PATH"
-          ./configure.sh
+          ./configure.sh --disable-benchmark
 
       - name: Build wheel
         shell: msys2 {0}
         env:
-          LAT_MOD: yes
           PYTHONUTF8: "1"
           PYTHONIOENCODING: "utf-8"
           LANG: "C.UTF-8"
