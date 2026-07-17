@@ -1,4 +1,4 @@
-name: Build Windows Python 3.10 Wheel v4
+name: Build Windows Python 3.10 Wheel v5
 
 on:
   release:
@@ -66,16 +66,30 @@ jobs:
           export PATH="/c/hostedtoolcache/windows/Python/3.10.11/x64:/c/hostedtoolcache/windows/Python/3.10.11/x64/Scripts:$PATH"
           ./configure.sh --disable-benchmark
 
+      - name: (DEBUG) Check GMP and PBC files
+        shell: msys2 {0}
+        run: |
+          ls -l /mingw64/include/gmp.h
+          ls -l /mingw64/include/pbc.h
+          ls -l /mingw64/lib | grep gmp || true
+          ls -l /mingw64/lib | grep pbc || true
+
       - name: Build wheel
         shell: msys2 {0}
         env:
           LAT_MOD: yes
           PYTHONUTF8: "1"
           PYTHONIOENCODING: "utf-8"
-          LANG: "C.UTF-8"
-          LC_ALL: "C.UTF-8"
+          CFLAGS: "-I/mingw64/include"
+          CPPFLAGS: "-I/mingw64/include"
+          LDFLAGS: "-L/mingw64/lib"
         run: |
-          export PATH="/c/hostedtoolcache/windows/Python/3.10.11/x64:/c/hostedtoolcache/windows/Python/3.10.11/x64/Scripts:$PATH"
+          PYTHON_DIR="$(cygpath -u "$pythonLocation")"
+          export PATH="$PYTHON_DIR:$PYTHON_DIR/Scripts:$PATH"
+          echo "CFLAGS=$CFLAGS"
+          echo "CPPFLAGS=$CPPFLAGS"
+          echo "LDFLAGS=$LDFLAGS"
+          ls /mingw64/include/gmp.h
           python setup.py bdist_wheel --dist-dir wheelhouse
           ls -la wheelhouse
 
