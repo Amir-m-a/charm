@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <sys/time.h>
+#include <time.h>
 #include "relic_interface.h"
 
 /* prime curves */
