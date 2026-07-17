@@ -1,4 +1,4 @@
-name: Build Windows Python 3.10 Wheel v3
+name: Build Windows Python 3.10 Wheel v4
 
 on:
   release:
@@ -69,6 +69,7 @@ jobs:
       - name: Build wheel
         shell: msys2 {0}
         env:
+          LAT_MOD: yes
           PYTHONUTF8: "1"
           PYTHONIOENCODING: "utf-8"
           LANG: "C.UTF-8"
