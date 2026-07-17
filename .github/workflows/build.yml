@@ -1,82 +1,104 @@
-name: Build Windows Wheels
+name: Build and Publish Wheels
 
 on:
-  workflow_dispatch:
   push:
     tags:
       - '*'
+  workflow_dispatch:
 
 jobs:
   build-wheels:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up MSYS2 (Windows)
-      uses: msys2/setup-msys2@v2
-      with:
-        msystem: MINGW64
-        update: true
-        install: >-
-          mingw-w64-x86_64-gcc
-          mingw-w64-x86_64-gmp
-          mingw-w64-x86_64-openssl
-          make
-          flex
-          bison
-          wget
+      - name: Set up MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-gmp
+            mingw-w64-x86_64-openssl
+            make
+            flex
+            bison
+            wget
 
-    - name: Build PBC library (Windows)
-      shell: msys2 {0}
-      run: |
-        wget https://crypto.stanford.edu/pbc/files/pbc-1.0.0.tar.gz
-        tar -xzf pbc-1.0.0.tar.gz
-        cd pbc-1.0.0
-        ./configure --prefix=/mingw64 --disable-static --enable-shared --disable-dependency-tracking LDFLAGS="-L/usr/lib"
-        make -j$(nproc)
-        make install
+      - name: Build and install PBC
+        shell: msys2 {0}
+        run: |
+          wget -q https://crypto.stanford.edu/pbc/files/pbc-1.0.0.tar.gz
+          tar -xzf pbc-1.0.0.tar.gz
+          cd pbc-1.0.0
+          ./configure \
+            --prefix=/mingw64 \
+            --disable-static \
+            --enable-shared \
+            --disable-dependency-tracking \
+            LDFLAGS="-L/mingw64/lib"
+          make -j$(nproc)
+          make install
 
-    - name: Build wheels (including lattice module)
-      uses: pypa/cibuildwheel@v2.21.3
-      env:
-        CIBW_BUILD: cp310-*
-        CIBW_SKIP: "*-win32 *-win_arm64"
-        CIBW_ENVIRONMENT_WINDOWS: >-
-          LAT_MOD=yes
-          PATH="C:\\msys64\\mingw64\\bin;C:\\msys64\\usr\\bin;$PATH"
-          CPATH="C:\\msys64\\mingw64\\include"
-          LIBRARY_PATH="C:\\msys64\\mingw64\\lib"
-        CIBW_BEFORE_ALL_WINDOWS: "pip install delvewheel"
-        CIBW_BEFORE_BUILD_WINDOWS: "bash configure.sh"
-        CIBW_BUILD_FRONTEND: "pip; args: --config-settings=--build-option=--compiler=mingw32"
-        CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair --add-path C:\\msys64\\mingw64\\bin -w {dest_dir} {wheel}"
-        CIBW_TEST_COMMAND: "python -c \"import charm; import charm.toolbox; print('charm import OK')\""
+      - name: Run configure.sh via MSYS2
+        shell: msys2 {0}
+        env:
+          LAT_MOD: "yes"
+        run: |
+          export PATH="/mingw64/bin:/usr/bin:$PATH"
+          export CPATH="/mingw64/include"
+          export LIBRARY_PATH="/mingw64/lib"
+          export PKG_CONFIG_PATH="/mingw64/lib/pkgconfig"
+          bash configure.sh
 
-    - uses: actions/upload-artifact@v4
-      with:
-        name: wheels-windows-latest
-        path: ./wheelhouse/*.whl
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.21.3
+        env:
+          CIBW_BUILD: "cp310-*"
+          CIBW_SKIP: "*-win32 *-win_arm64"
+          CIBW_ENVIRONMENT_WINDOWS: >-
+            LAT_MOD=yes
+            PATH="C:\\msys64\\mingw64\\bin;C:\\msys64\\usr\\bin;$PATH"
+            CPATH="C:\\msys64\\mingw64\\include"
+            LIBRARY_PATH="C:\\msys64\\mingw64\\lib"
+            PKG_CONFIG_PATH="C:\\msys64\\mingw64\\lib\\pkgconfig"
+          CIBW_BEFORE_ALL_WINDOWS: "pip install delvewheel"
+          CIBW_BUILD_FRONTEND: "pip; args: --config-settings=--build-option=--compiler=mingw32"
+          CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: >-
+            delvewheel repair
+            --add-path C:\\msys64\\mingw64\\bin
+            -w {dest_dir} {wheel}
+          CIBW_TEST_COMMAND: >-
+            python -c
+            "import charm; import charm.toolbox; print('charm import OK')"
 
-  # Attach the built wheels to a GitHub Release.
-  # Runs on tag pushes AND on manual (workflow_dispatch) runs.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-windows-latest
+          path: ./wheelhouse/*.whl
+
   publish-release:
     needs: build-wheels
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    steps:
-    - name: Download all wheel artifacts
-      uses: actions/download-artifact@v4
-      with:
-        pattern: wheels-*
-        path: dist
-        merge-multiple: true
 
-    - name: Upload wheels to release
-      uses: softprops/action-gh-release@v2
-      with:
-        # On a tag push, use the tag name. On a manual run there is no tag,
-        # so create/update a run-scoped tag instead.
-        tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('manual-{0}', github.run_number) }}
-        files: dist/*.whl
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          path: dist
+          merge-multiple: true
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: >-
+            ${{
+              startsWith(github.ref, 'refs/tags/')
+              && github.ref_name
+              || format('manual-{0}', github.run_number)
+            }}
+          files: dist/*.whl
