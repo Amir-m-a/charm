@@ -69,10 +69,10 @@ jobs:
       - name: (DEBUG) Check GMP and PBC files
         shell: msys2 {0}
         run: |
-          ls -l /mingw64/include/gmp.h
-          ls -l /mingw64/include/pbc.h
-          ls -l /mingw64/lib | grep gmp || true
-          ls -l /mingw64/lib | grep pbc || true
+          ls -l /mingw64/include/gmp*
+          ls -l /mingw64/include/pbc*
+          ls -l /mingw64/lib | grep gmp
+          ls -l /mingw64/lib | grep pbc
 
       - name: Build wheel
         shell: msys2 {0}
