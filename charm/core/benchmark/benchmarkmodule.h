@@ -13,7 +13,91 @@ extern "C" {
 
 #include <Python.h>
 #include <structmember.h>
+#include <time.h>
+
+#ifdef _WIN32
+
+#ifndef CHARM_WINDOWS_TIMEVAL_DEFINED
+#define CHARM_WINDOWS_TIMEVAL_DEFINED
+struct timeval {
+	long tv_sec;
+	long tv_usec;
+};
+#endif
+
+static int gettimeofday(struct timeval *tv, void *tz)
+{
+	(void)tz;
+
+	if (tv == NULL) {
+		return -1;
+	}
+
+#if defined(TIME_UTC)
+	{
+		struct timespec ts;
+		if (timespec_get(&ts, TIME_UTC) == TIME_UTC) {
+			tv->tv_sec = (long)ts.tv_sec;
+			tv->tv_usec = (long)(ts.tv_nsec / 1000);
+			return 0;
+		}
+	}
+#endif
+
+	tv->tv_sec = (long)time(NULL);
+	tv->tv_usec = 0;
+	return 0;
+}
+
+#ifndef timersub
+#define timersub(a, b, result)                                      \
+	do {                                                            \
+		(result)->tv_sec = (a)->tv_sec - (b)->tv_sec;               \
+		(result)->tv_usec = (a)->tv_usec - (b)->tv_usec;            \
+		if ((result)->tv_usec < 0) {                                \
+			--(result)->tv_sec;                                     \
+			(result)->tv_usec += 1000000;                           \
+		}                                                           \
+	} while (0)
+#endif
+
+#ifndef timeradd
+#define timeradd(a, b, result)                                      \
+	do {                                                            \
+		(result)->tv_sec = (a)->tv_sec + (b)->tv_sec;               \
+		(result)->tv_usec = (a)->tv_usec + (b)->tv_usec;            \
+		if ((result)->tv_usec >= 1000000) {                         \
+			++(result)->tv_sec;                                     \
+			(result)->tv_usec -= 1000000;                           \
+		}                                                           \
+	} while (0)
+#endif
+
+#ifndef timerclear
+#define timerclear(tvp)                                             \
+	do {                                                            \
+		(tvp)->tv_sec = 0;                                          \
+		(tvp)->tv_usec = 0;                                         \
+	} while (0)
+#endif
+
+#ifndef timerisset
+#define timerisset(tvp) ((tvp)->tv_sec || (tvp)->tv_usec)
+#endif
+
+#ifndef timercmp
+#define timercmp(a, b, CMP)                                         \
+	(((a)->tv_sec == (b)->tv_sec) ?                                 \
+		((a)->tv_usec CMP (b)->tv_usec) :                           \
+		((a)->tv_sec CMP (b)->tv_sec))
+#endif
+
+#else
+
 #include <sys/time.h>
+
+#endif
+
 
 // set default if not passed in by compiler
 //#ifndef BENCHMARK_ENABLED
