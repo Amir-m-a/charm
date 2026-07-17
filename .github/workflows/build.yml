@@ -40,20 +40,17 @@ jobs:
     - name: Build wheels (including lattice module)
       uses: pypa/cibuildwheel@v2.21.3
       env:
-        # Build only CPython 3.10
         CIBW_BUILD: cp310-*
         CIBW_SKIP: "*-win32 *-win_arm64"
         CIBW_ENVIRONMENT_WINDOWS: >-
           LAT_MOD=yes
-          PATH="C:\\msys64\\mingw64\\bin;$PATH"
+          PATH="C:\\msys64\\mingw64\\bin;C:\\msys64\\usr\\bin;$PATH"
           CPATH="C:\\msys64\\mingw64\\include"
           LIBRARY_PATH="C:\\msys64\\mingw64\\lib"
         CIBW_BEFORE_ALL_WINDOWS: "pip install delvewheel"
         CIBW_BEFORE_BUILD_WINDOWS: "bash configure.sh"
         CIBW_BUILD_FRONTEND: "pip; args: --config-settings=--build-option=--compiler=mingw32"
         CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair --add-path C:\\msys64\\mingw64\\bin -w {dest_dir} {wheel}"
-        # Import smoke test: cibuildwheel installs each built wheel into a
-        # clean venv and runs this before accepting it as a valid artifact
         CIBW_TEST_COMMAND: "python -c \"import charm; import charm.toolbox; print('charm import OK')\""
 
     - uses: actions/upload-artifact@v4
