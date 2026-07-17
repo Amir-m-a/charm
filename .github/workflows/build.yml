@@ -1,4 +1,4 @@
-name: Build Windows Python 3.10 Wheel v2
+name: Build Windows Python 3.10 Wheel v3
 
 on:
   release:
@@ -70,6 +70,10 @@ jobs:
         shell: msys2 {0}
         env:
           LAT_MOD: yes
+          PYTHONUTF8: "1"
+          PYTHONIOENCODING: "utf-8"
+          LANG: "C.UTF-8"
+          LC_ALL: "C.UTF-8"
         run: |
           export PATH="/c/hostedtoolcache/windows/Python/3.10.11/x64:/c/hostedtoolcache/windows/Python/3.10.11/x64/Scripts:$PATH"
           python setup.py bdist_wheel --dist-dir wheelhouse
